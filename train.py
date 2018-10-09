@@ -51,11 +51,12 @@ if __name__ == '__main__':
         'num_threads': 4,
     }
 
-    params['seed'] = 1
-    model = lgb.train(params, lgb.Dataset(df_X, label=df_y), 600)
+    if model_config['time_leakage']['is_leakage'] == False:
+        params['seed'] = 1
+        model = lgb.train(params, lgb.Dataset(df_X, label=df_y), 600)
 
-    model_config['model'] = model
-    model_config['params'] = params
+        model_config['model'] = model
+        model_config['params'] = params
 
     model_config_filename = os.path.join(args.model_dir, 'model_config.pkl')
     with open(model_config_filename, 'wb') as fout:

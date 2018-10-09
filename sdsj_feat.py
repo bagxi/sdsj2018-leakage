@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import lightgbm as lgb
 from sklearn import model_selection
 
+from leakages import time_leakage
 from utils import transform_datetime_features
 
 ONEHOT_MAX_UNIQUE_VALUES = 20
@@ -60,14 +61,6 @@ def load_data(filename, datatype='train', cfg={}):
     df = transform_datetime_features(df)
     print('Transform datetime done, shape {}'.format(df.shape))
 
-    # categorical encoding
-    if datatype == 'train':
-        df, categorical_values = transform_categorical_features(df)
-        model_config['categorical_values'] = categorical_values
-    else:
-        df, categorical_values = transform_categorical_features(df, model_config['categorical_values'])
-    print('Transform categorical done, shape {}'.format(df.shape))
-
     # drop constant features
     if datatype == 'train':
         constant_columns = [
@@ -76,6 +69,27 @@ def load_data(filename, datatype='train', cfg={}):
             if df[col_name].nunique() == 1
             ]
         df.drop(constant_columns, axis=1, inplace=True)
+
+    # time leakage
+    if datatype == 'train':
+        df_ = df.copy()
+        df_['target'] = y
+        model_config['time_leakage'] = time_leakage(df_)
+    else:
+        if model_config['time_leakage']['is_leakage']:
+            model_config['time_leakage'].update({
+                'dt_series': df[model_config['time_leakage']['dt_col']],
+                'id_series': df[model_config['time_leakage']['id_col']],
+                'num_series': df[model_config['time_leakage']['num_col']]
+            })
+
+    # categorical encoding
+    if datatype == 'train':
+        df, categorical_values = transform_categorical_features(df)
+        model_config['categorical_values'] = categorical_values
+    else:
+        df, categorical_values = transform_categorical_features(df, model_config['categorical_values'])
+    print('Transform categorical done, shape {}'.format(df.shape))
 
     # filter columns
     if datatype == 'train':
